@@ -1,0 +1,214 @@
+---
+title: "Blackwell Case: Market Basket Analysis for Aquisition of Electronidex"
+author: Thomas Schneider - Data Analyst
+output: 
+  ioslides_presentation:
+    background: white
+    smaller: yes
+    widescreen: yes
+    css: https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css
+---
+
+```{r setup, include=FALSE}
+# Used to not show code in presentation
+knitr::opts_chunk$set(echo = FALSE, warning = F, message = F, cache = F)
+
+```
+
+```{r loading libraries and dataset, message=FALSE, warning=F}
+#loading all necessary libraries
+
+if(require("pacman")=="FALSE"){
+  install.packages("pacman")
+} 
+
+pacman::p_load(corrplot, dplyr, ggplot2, caret, tidyr, dunn.test, Hmisc,xtable, htmlTable, 
+               knitr, kableExtra, RColorBrewer, e1071, FNN, scales,
+               tibble, modelr, magrittr, VIM, fastDummies, plotly, readr)
+
+#install.packages("arules")
+#install.packages("arulesViz")
+#install_github("mhahsler/arulesViz")
+
+library(arules)
+library(arulesViz)
+```
+
+## Task Overview
+
+Blackwell Electronics is considering the acquisition of Elcetronindex, a start-up electronics online retailer. The board of directors is interested in understanding what clientele Electronindex currently has in order to evaluate whether the acquisition would add to Blackwell's strategic target customer base. 
+
+The following market basket analysis is supposed to answer the following:
+- What relationships can be observed within Electronidex's sales
+- Would Blackwell benefit from selling any items of Electronindey's product portfolio
+- Overall is the acquisition recommendable
+- After a potential acquisition how should Blackwell restructure the business
+
+Available Resources: One-month worth of online transactions data
+
+
+## Summary of Data
+```{r}
+#summary of Data
+#SalesData <- read.csv("C:/Users/Thomas S/Documents/Ubiqum/Data Analytics 2/R/4. Discover Associations Between Products/ElectronidexTransactions2017.csv")
+
+SalesData <- read.transactions("C:/Users/Thomas S/Documents/Ubiqum/2. Data Analytics 2/2. Data Analytics 2/4. Discover Associations Between Products/ElectronidexTransactions2017.csv", 
+                               sep= ",",
+                               format = "basket",
+                               rm.duplicates= TRUE)
+                          
+summary(SalesData)
+```
+
+## Sales Data
+```{r}
+SalesData
+```
+
+
+## Summary of Data2
+```{r}
+glimpse(SalesData)
+```
+
+## Data Inspection
+```{r}
+inspect(SalesData[1:10])
+```
+
+## Data Inspection 2
+```{r}
+length(SalesData)
+```
+
+## Data Inspection 2
+```{r}
+size(SalesData)
+```
+
+## Data Inspection 2
+```{r}
+LIST(SalesData)
+```
+
+## Data Inspection 2
+```{r}
+itemLabels(SalesData)
+```
+
+## Data Visualization
+```{r}
+itemFrequencyPlot(SalesData,
+                  type = "absolute",
+                  support = NULL,
+                  topN= 10,
+                  popCol= "green",
+                  horiz=F,
+                  xlab= "10 Most Puchased Items",
+                  ylab= "Frequency")
+```
+
+## Data Vizualization 2
+```{r}
+image(SalesData, zcol= 10, xcol= 10, ycol=10, asp=1)
+```
+
+## Data Vizualization 3
+```{r}
+image(sample(SalesData, 150, asp=1))
+```
+
+## Data Vizualization 4
+```{r}
+image(sample(SalesData, 10, asp=1))
+```
+
+## Creating Rules
+```{r}
+Rule1 <-apriori(SalesData, parameter = list(supp=0.01, conf=0.3, minlen=1))
+
+inspect(Rule1)
+
+is.redundant(Rule1)
+#summary(Rule1)
+```
+
+## Creating Rules Ordered by confidence
+```{r}
+#inspect(sort(SalesData, by = "lift"))
+
+RuleSubset <- subset(Rule1, confidence >= 0.4) 
+
+inspect(RuleSubset)
+```
+
+```{r}
+# store a csv file with transaction items
+#SalesData@itemInfo %>% write_csv("C:/Users/Thomas S/Documents/Ubiqum/Data Analytics 2/R/4. Discover Associations Between Products/ElectronidexwCategories.csv")
+```
+
+```{r}
+# load the new categories
+new_cat <- read_csv("C:/Users/Thomas S/Documents/Ubiqum/2. Data Analytics 2/2. Data Analytics 2/4. Discover Associations Between Products/ElectronidexwCategories.csv")
+```
+
+```{r}
+# add new categories in the transactions file
+
+SalesData@itemInfo <- SalesData@itemInfo %>%
+  left_join(new_cat, by="labels")
+```
+
+```{r}
+# aggregate by the new categories on transactions
+
+new_label_SalesData <- arules::aggregate(SalesData, by = "new_label")
+```
+
+## Creating Rules 2
+```{r}
+Rules2 <-apriori(new_label_SalesData, parameter = list(supp=0.01, conf=0.3, minlen=1))
+
+inspect(Rules2)
+
+#is.redundant(Rules2)
+#summary(Rule1)
+
+#summary(new_label_SalesData)
+```
+
+```{r}
+# load the new categories
+new_cat2 <- read_csv("C:/Users/Thomas S/Documents/Ubiqum/2. Data Analytics 2/2. Data Analytics 2/4. Discover Associations Between Products/ElectronidexwCategories.csv")
+```
+
+```{r}
+# add new categories in the transactions file
+
+SalesData@itemInfo <- SalesData@itemInfo %>%
+  left_join(new_cat2, by="labels")
+```
+
+```{r}
+# aggregate by the new categories on transactions
+
+new_label_SalesData2 <- arules::aggregate(SalesData, by = "new_label2")
+
+new_label_SalesData3 <- arules::aggregate(SalesData, by = "new_label3")
+
+new_label_SalesData4 <- arules::aggregate(SalesData, by = "new_label4")
+```
+
+## Creating Rule 3
+```{r}
+Rules3 <-apriori(new_label_SalesData2, parameter = list(supp=0.01, conf=0.3, minlen=1))
+
+Rules4 <-apriori(new_label_SalesData3, parameter = list(supp=0.01, conf=0.3, minlen=1))
+
+Rules5 <-apriori(new_label_SalesData4, parameter = list(supp=0.01, conf=0.3, minlen=1))
+
+inspect(Rules3)
+```
+
+
+
